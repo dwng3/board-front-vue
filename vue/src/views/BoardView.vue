@@ -1,53 +1,59 @@
 <script setup>
-import { computed, onMounted, ref } from "vue";
+import { onMounted, ref, watch } from "vue";
 import { RouterLink, useRouter } from "vue-router";
 import PostList from "@/components/board/PostList.vue";
 
 const keyword = ref("");
 const posts = ref([]);
+const currentPage = ref(0);
+const totalPages = ref(0);
+const totalElements = ref(0);
+const pageSize = 5;
 
 const router = useRouter();
 
-async function fetchPosts() {
-  const response = await fetch("/api/boards");
-  if (!response.ok) throw new Error("Failed to fetch posts");
-  posts.value = await response.json();
+async function fetchPosts(page = 0) {
+  const params = new URLSearchParams({
+    page: String(page),
+    size: String(pageSize),
+  });
+
+  if (keyword.value.trim()) {
+    params.set("keyword", keyword.value.trim());
+  }
+
+  const response = await fetch(`/api/boards?${params.toString()}`);
+
+  if (!response.ok) {
+    throw new Error("게시글 목록을 불러오지 못했습니다.");
+  }
+
+  const data = await response.json();
+  posts.value = data.content ?? [];
+  currentPage.value = data.number ?? 0;
+  totalPages.value = data.totalPages ?? 0;
+  totalElements.value = data.totalElements ?? posts.value.length;
 }
 
-onMounted(fetchPosts);
-
-const currentPage = ref(1);
-const pageSize = 5;
-
-const filteredPosts = computed(() => {
-  const kw = keyword.value.trim().toLowerCase();
-
-  if (!kw) return posts.value;
-
-  return posts.value.filter((post) =>
-    post.title.toLowerCase().includes(kw) ||
-    post.writer.toLowerCase().includes(kw) ||
-    post.content.toLowerCase().includes(kw),
-  );
+onMounted(() => {
+  fetchPosts();
 });
 
-const totalPages = computed(() =>
-  Math.max(1, Math.ceil(filteredPosts.value.length / pageSize)),
-);
-
-const paginatedPosts = computed(() => {
-  const start = (currentPage.value - 1) * pageSize;
-  const end = start + pageSize;
-  return filteredPosts.value.slice(start, end);
+watch(keyword, () => {
+  fetchPosts(0);
 });
 
 function goToPage(page) {
-  if (page < 1 || page > totalPages.value) return;
-  currentPage.value = page;
+  if (page < 0 || page >= totalPages.value) return;
+  fetchPosts(page);
 }
 
 async function deletePost(id) {
   const password = prompt("게시물 비밀번호를 입력하세요.");
+
+  if (password === null || password.trim() === "") {
+    return;
+  }
 
   const response = await fetch(`/api/boards/${id}`, {
     method: "DELETE",
@@ -58,11 +64,16 @@ async function deletePost(id) {
   });
 
   if (!response.ok) {
-    alert('비밀번호가 일치하지 않습니다.');
-    throw new Error("Failed to delete post");
+    alert("비밀번호가 일치하지 않거나 삭제에 실패했습니다.");
+    return;
   }
 
-  posts.value = posts.value.filter((post) => post.id !== id);
+  const nextPage =
+    posts.value.length === 1 && currentPage.value > 0
+      ? currentPage.value - 1
+      : currentPage.value;
+
+  await fetchPosts(nextPage);
 }
 
 async function editPost(id) {
@@ -94,7 +105,7 @@ async function likePost(id) {
   });
 
   if (!response.ok) {
-    throw new Error("Failed to update like count");
+    throw new Error("좋아요 처리에 실패했습니다.");
   }
 
   const updatedPost = await response.json();
@@ -118,15 +129,24 @@ async function likePost(id) {
     <div class="board-toolbar">
       <label class="search-box">
         <span class="search-label">검색</span>
-        <input v-model="keyword" type="text" placeholder="제목, 작성자, 내용을 검색하세요" class="search-input" />
+        <input
+          v-model="keyword"
+          type="text"
+          placeholder="제목, 작성자, 내용을 검색하세요"
+          class="search-input"
+        />
       </label>
-      <span class="result-count">총 {{ filteredPosts.length }}개</span>
+      <span class="result-count">총 {{ totalElements }}개</span>
     </div>
 
-    <PostList :posts="paginatedPosts" @delete="deletePost" @like="likePost" @edit="editPost" />
+    <PostList :posts="posts" @delete="deletePost" @like="likePost" @edit="editPost" />
 
-    <div class="pagination">
-      <button class="page-button nav-button" @click="goToPage(currentPage - 1)" :disabled="currentPage === 1">
+    <div class="pagination" v-if="totalPages > 0">
+      <button
+        class="page-button nav-button"
+        @click="goToPage(currentPage - 1)"
+        :disabled="currentPage === 0"
+      >
         이전
       </button>
 
@@ -134,13 +154,17 @@ async function likePost(id) {
         v-for="page in totalPages"
         :key="page"
         class="page-button"
-        @click="goToPage(page)"
-        :class="{ active: page === currentPage }"
+        @click="goToPage(page - 1)"
+        :class="{ active: page - 1 === currentPage }"
       >
         {{ page }}
       </button>
 
-      <button class="page-button nav-button" @click="goToPage(currentPage + 1)" :disabled="currentPage === totalPages">
+      <button
+        class="page-button nav-button"
+        @click="goToPage(currentPage + 1)"
+        :disabled="currentPage === totalPages - 1"
+      >
         다음
       </button>
     </div>
@@ -159,15 +183,6 @@ async function likePost(id) {
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 20px;
-}
-
-.eyebrow {
-  margin: 0 0 8px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #2563eb;
 }
 
 h1 {
