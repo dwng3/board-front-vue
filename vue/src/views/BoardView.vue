@@ -7,7 +7,6 @@ const keyword = ref("");
 const posts = ref([]);
 const currentPage = ref(0);
 const totalPages = ref(0);
-const totalElements = ref(0);
 const pageSize = 5;
 
 const router = useRouter();
@@ -32,7 +31,6 @@ async function fetchPosts(page = 0) {
   posts.value = data.content ?? [];
   currentPage.value = data.number ?? 0;
   totalPages.value = data.totalPages ?? 0;
-  totalElements.value = data.totalElements ?? posts.value.length;
 }
 
 onMounted(() => {
@@ -136,7 +134,6 @@ async function likePost(id) {
           class="search-input"
         />
       </label>
-      <span class="result-count">총 {{ totalElements }}개</span>
     </div>
 
     <PostList :posts="posts" @delete="deletePost" @like="likePost" @edit="editPost" />
