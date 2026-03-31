@@ -7,6 +7,13 @@ defineProps({
 });
 
 const emit = defineEmits(["delete", "like", "edit"]);
+
+function formatCreatedAt(value) {
+  if (!value) return "";
+
+  const [datePart = "", timePart = ""] = String(value).split("T");
+  return timePart ? `${datePart} ${timePart.slice(0, 5)}` : datePart;
+}
 </script>
 
 <template>
@@ -14,9 +21,9 @@ const emit = defineEmits(["delete", "like", "edit"]);
     <li v-for="post in posts" :key="post.id" class="post-card">
       <RouterLink :to="`/post/${post.id}`" class="post-link">
         <div class="post-meta">
-          <span class="meta-badge">글번호 {{ post.id }}</span>
-          <span class="meta-item">{{ post.writer }}</span>
-          <span class="meta-item">{{ post.createdAt }}</span>
+          <span class="meta-badge">글번호 : {{ post.id }}</span>
+          <span class="meta-item">작성자 : {{ post.writer }}</span>
+          <span class="meta-item">작성일시: {{ formatCreatedAt(post.updatedAt) }}</span>
         </div>
         <h2 class="post-title">{{ post.title }}</h2>
       </RouterLink>

@@ -2,7 +2,7 @@ import { createWebHistory, createRouter } from "vue-router";
 
 const routes = [
   {
-    path: "/",
+    path: "/board",
     name: "BoardView",
     component: () => import("@/views/BoardView.vue"),
   },
@@ -20,6 +20,16 @@ const routes = [
     path: "/post/:id/edit",
     name: "PostEdit",
     component: () => import("@/views/PostEditView.vue"),
+  },
+  {
+    path: "/",
+    name: "SignInView",
+    component: () => import("@/views/SignInView.vue"),
+  },
+  {
+    path: "/signUp",
+    name: "SignUpView",
+    component: () => import("@/views/SignUpView.vue"),
   },
 ];
 

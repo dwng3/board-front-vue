@@ -5,6 +5,13 @@ defineProps({
     default: null,
   },
 });
+
+function formatCreatedAt(value) {
+  if (!value) return "";
+
+  const [datePart = "", timePart = ""] = String(value).split("T");
+  return timePart ? `${datePart} ${timePart.slice(0, 5)}` : datePart;
+}
 </script>
 
 <template>
@@ -12,7 +19,7 @@ defineProps({
     <template v-if="post">
     <h2>{{ post.title }}</h2>
     <p class="meta">
-      작성자 {{ post.writer }} | 작성일자 {{ post.createdAt }}
+      작성자 : {{ post.writer }} | 작성일시 : {{ formatCreatedAt(post.updatedAt) }} 
     </p>
     <p class="content">
       {{ post.content }}

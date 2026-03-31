@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from "vue";
+import { onMounted, ref } from "vue";
 import { RouterLink, useRoute } from "vue-router";
 import PostDetail from "@/components/board/PostDetail.vue";
 
@@ -18,7 +18,6 @@ async function fetchPost() {
 }
 
 onMounted(fetchPost);
-
 </script>
 
 <template>
@@ -35,9 +34,15 @@ onMounted(fetchPost);
 }
 
 .back-link {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   margin-bottom: 16px;
+  padding: 10px 14px;
+  border-radius: 999px;
   color: #2563eb;
+  background: #eff6ff;
   text-decoration: none;
+  font-weight: 700;
 }
 </style>
