@@ -1,47 +1,75 @@
 <script setup>
-import { computed, onMounted, reactive } from "vue";
+import { onMounted, reactive } from "vue";
 import { RouterLink, useRoute, useRouter } from "vue-router";
+import { clearAccessToken, createAuthHeaders, getAccessToken } from "@/utils/auth";
 
 const router = useRouter();
 const route = useRoute();
 
 const form = reactive({
-  title : "",
-  writer: "",
+  title: "",
   content: "",
 });
 
+function moveToSignIn() {
+  clearAccessToken();
+  router.push({ name: "SignInView" });
+}
+
 async function fetchPost() {
+  if (!getAccessToken()) {
+    moveToSignIn();
+    return;
+  }
+
   const id = route.params.id;
 
-  const response = await fetch(`/api/boards/${id}`);
+  const response = await fetch(`/api/boards/${id}`, {
+    headers: createAuthHeaders(),
+  });
+
+  if (response.status === 401) {
+    moveToSignIn();
+    return;
+  }
+
   if (!response.ok) {
     throw new Error("Failed to fetch post");
   }
 
   const data = await response.json();
   form.title = data.title;
-  form.writer = data.writer;
   form.content = data.content;
 }
 
 async function submitPost() {
+  if (!getAccessToken()) {
+    moveToSignIn();
+    return;
+  }
+
   const id = route.params.id;
   const response = await fetch(`/api/boards/${id}`, {
     method: "PUT",
-    headers: {
+    headers: createAuthHeaders({
       "Content-Type": "application/json",
-    },
+    }),
     body: JSON.stringify(form),
   });
 
-  if (!response.ok) throw new Error("Failed to update post");
+  if (response.status === 401) {
+    moveToSignIn();
+    return;
+  }
+
+  if (!response.ok) {
+    throw new Error("Failed to update post");
+  }
 
   router.push(`/post/${id}`);
 }
 
 onMounted(fetchPost);
-
 </script>
 
 <template>
@@ -50,7 +78,7 @@ onMounted(fetchPost);
       <div>
         <h1>게시글 수정</h1>
       </div>
-      <RouterLink to="/" class="back-link">뒤로가기</RouterLink>
+      <RouterLink :to="{ name: 'BoardView' }" class="back-link">뒤로 가기</RouterLink>
     </div>
 
     <form class="write-form" @submit.prevent="submitPost">
@@ -60,18 +88,13 @@ onMounted(fetchPost);
       </label>
 
       <label class="field">
-        <span>작성자</span>
-        <input v-model="form.writer" type="text" placeholder="작성자" disabled/>
-      </label>
-
-      <label class="field">
         <span>내용</span>
         <textarea v-model="form.content" rows="10" placeholder="내용"></textarea>
       </label>
 
       <div class="actions">
-        <RouterLink to="/" class="cancel-button">취소</RouterLink>
-        <button type="submit" class="submit-button">저장</button>
+        <RouterLink :to="{ name: 'BoardView' }" class="cancel-button">취소</RouterLink>
+        <button type="submit" class="submit-button">수정</button>
       </div>
     </form>
   </section>

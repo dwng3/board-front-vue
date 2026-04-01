@@ -38,7 +38,7 @@ async function submitPost() {
     body: JSON.stringify(payload),
   });
 
-  router.push("/");
+  router.push({ name : "SignInView"});
 }
 </script>
 
@@ -87,7 +87,7 @@ async function submitPost() {
 
 <style scoped>
 .write-page {
-  width: min(800px, calc(100% - 32px));
+  width: min(400px, calc(100% - 32px));
   margin: 40px auto;
 }
 

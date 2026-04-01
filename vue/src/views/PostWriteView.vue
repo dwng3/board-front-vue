@@ -1,32 +1,46 @@
 <script setup>
-import { reactive, registerRuntimeCompiler } from "vue";
+import { reactive } from "vue";
 import { RouterLink, useRouter } from "vue-router";
+import { clearAccessToken, createAuthHeaders, getAccessToken } from "@/utils/auth";
 
 const router = useRouter();
 
 const form = reactive({
   title: "",
-  writer: "",
   content: "",
-  password: ""
 });
 
-async function submitPost() {
+function moveToSignIn() {
+  clearAccessToken();
+  router.push({ name: "SignInView" });
+}
 
-  if (!form.password) {
-    alert("비밀번호를 입력하세요.");
+async function submitPost() {
+  if (!getAccessToken()) {
+    moveToSignIn();
     return;
   }
-  
+
+
   const response = await fetch(`/api/boards`, {
     method: "POST",
-    headers: {
+    headers: createAuthHeaders({
       "Content-Type": "application/json",
-    },
+    }),
     body: JSON.stringify(form),
   });
 
-  router.push("/");
+  if (response.status === 401) {
+    moveToSignIn();
+    return;
+  }
+
+  if (!response.ok) {
+    alert("게시글 등록에 실패했습니다.");
+    return;
+  }
+
+  router.push({ name: "BoardView" });
 }
 </script>
 
@@ -36,7 +50,7 @@ async function submitPost() {
       <div>
         <h1>글 작성</h1>
       </div>
-      <RouterLink to="/" class="back-link">뒤로가기</RouterLink>
+      <RouterLink :to="{ name: 'BoardView' }" class="back-link">뒤로 가기</RouterLink>
     </div>
 
     <form class="write-form" @submit.prevent="submitPost">
@@ -46,27 +60,13 @@ async function submitPost() {
       </label>
 
       <label class="field">
-        <span>작성자</span>
-        <input v-model="form.writer" type="text" placeholder="작성자" />
-      </label>
-
-      <label class="field">
         <span>내용</span>
-        <textarea
-          v-model="form.content"
-          rows="10"
-          placeholder="내용"
-        ></textarea>
-      </label>
-
-      <label class="field">
-        <span>비밀번호</span>
-        <input v-model="form.password" type="password" placeholder="비밀번호" />
+        <textarea v-model="form.content" rows="10" placeholder="내용"></textarea>
       </label>
 
       <div class="actions">
-        <RouterLink to="/" class="cancel-button">취소</RouterLink>
-        <button type="submit" class="submit-button">저장</button>
+        <RouterLink :to="{ name: 'BoardView' }" class="cancel-button">취소</RouterLink>
+        <button type="submit" class="submit-button">등록</button>
       </div>
     </form>
   </section>
@@ -85,7 +85,6 @@ async function submitPost() {
   gap: 16px;
   margin-bottom: 24px;
 }
-
 
 h1 {
   margin: 0;
@@ -156,7 +155,7 @@ h1 {
 }
 
 .back-link,
-.ghost-button {
+.cancel-button {
   color: #2563eb;
   background: #eff6ff;
 }

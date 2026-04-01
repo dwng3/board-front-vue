@@ -2,6 +2,7 @@
 import { onMounted, ref } from "vue";
 import { RouterLink, useRoute, useRouter } from "vue-router";
 import PostList from "@/components/board/PostList.vue";
+import { clearAccessToken, createAuthHeaders, getAccessToken } from "@/utils/auth";
 
 const keyword = ref("");
 const posts = ref([]);
@@ -12,11 +13,23 @@ const pageSize = 5;
 const route = useRoute();
 const router = useRouter();
 
-const showPasswordModal = ref(false);
-const password = ref("");
-const passwordError = ref("");
-const pendingAction = ref("");
 const targetPostId = ref(null);
+
+function moveToSignIn() {
+  clearAccessToken();
+  router.push({ name: "SignInView" });
+}
+
+function requireToken() {
+  const token = getAccessToken();
+
+  if (!token) {
+    moveToSignIn();
+    return false;
+  }
+
+  return true;
+}
 
 async function syncListQuery(page) {
   const nextQuery = {};
@@ -33,6 +46,8 @@ async function syncListQuery(page) {
 }
 
 async function fetchPosts(page = 0) {
+  if (!requireToken()) return;
+
   await syncListQuery(page);
 
   const params = new URLSearchParams({
@@ -44,7 +59,14 @@ async function fetchPosts(page = 0) {
     params.set("keyword", keyword.value.trim());
   }
 
-  const response = await fetch(`/api/boards?${params.toString()}`);
+  const response = await fetch(`/api/boards?${params.toString()}`, {
+    headers: createAuthHeaders(),
+  });
+
+  if (response.status === 401) {
+    moveToSignIn();
+    return;
+  }
 
   if (!response.ok) {
     throw new Error("게시글 목록을 불러오지 못했습니다.");
@@ -57,6 +79,8 @@ async function fetchPosts(page = 0) {
 }
 
 onMounted(() => {
+  if (!requireToken()) return;
+
   keyword.value = typeof route.query.keyword === "string" ? route.query.keyword : "";
 
   const queryPage = Number(route.query.page ?? 1);
@@ -77,92 +101,16 @@ function searchPosts() {
   fetchPosts(0);
 }
 
-function openPasswordModal(action, id) {
-  pendingAction.value = action;
-  targetPostId.value = id;
-  password.value = "";
-  passwordError.value = "";
-  showPasswordModal.value = true;
-}
-
-function closePasswordModal() {
-  showPasswordModal.value = false;
-  password.value = "";
-  passwordError.value = "";
-  pendingAction.value = "";
-  targetPostId.value = null;
-}
-
-function deletePost(id) {
-  openPasswordModal("delete", id);
-}
-
-function editPost(id) {
-  openPasswordModal("edit", id);
-}
-
-async function submitPasswordAction() {
-  if (!password.value.trim()) {
-    passwordError.value = "비밀번호를 입력하세요.";
-    return;
-  }
-
-  if (pendingAction.value === "delete") {
-    await deletePostWithPassword(targetPostId.value, password.value);
-    return;
-  }
-
-  if (pendingAction.value === "edit") {
-    await editPostWithPassword(targetPostId.value, password.value);
-  }
-}
-
-async function deletePostWithPassword(id, rawPassword) {
-  const response = await fetch(`/api/boards/${id}`, {
-    method: "DELETE",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ password: rawPassword }),
-  });
-
-  if (!response.ok) {
-    passwordError.value = "비밀번호가 일치하지 않거나 삭제에 실패했습니다.";
-    return;
-  }
-
-  closePasswordModal();
-
-  const nextPage =
-    posts.value.length === 1 && currentPage.value > 0
-      ? currentPage.value - 1
-      : currentPage.value;
-
-  await fetchPosts(nextPage);
-}
-
-async function editPostWithPassword(id, rawPassword) {
-  const response = await fetch(`/api/boards/check/${id}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ password: rawPassword }),
-  });
-
-  if (!response.ok) {
-    passwordError.value = "비밀번호가 일치하지 않습니다.";
-    return;
-  }
-
-  closePasswordModal();
-  router.push(`/post/${id}/edit`);
-}
-
 async function likePost(id) {
   const response = await fetch(`/api/boards/likes/${id}`, {
     method: "PUT",
+    headers: createAuthHeaders(),
   });
+
+  if (response.status === 401) {
+    moveToSignIn();
+    return;
+  }
 
   if (!response.ok) {
     throw new Error("좋아요 처리에 실패했습니다.");
@@ -183,7 +131,10 @@ async function likePost(id) {
       <div>
         <h1>게시판</h1>
       </div>
-      <RouterLink to="/write" class="write-link">글 작성</RouterLink>
+      <div class="header-actions">
+        <button type="button" class="logout-button" @click="moveToSignIn">로그아웃</button>
+        <RouterLink :to="{ name: 'PostWrite' }" class="write-link">글 작성</RouterLink>
+      </div>
     </div>
 
     <div class="board-toolbar">
@@ -200,7 +151,7 @@ async function likePost(id) {
       <button type="button" class="search-button" @click="searchPosts">검색</button>
     </div>
 
-    <PostList :posts="posts" @delete="deletePost" @like="likePost" @edit="editPost" />
+    <PostList :posts="posts" @like="likePost" />
 
     <div class="pagination" v-if="totalPages > 0">
       <button
@@ -231,27 +182,6 @@ async function likePost(id) {
     </div>
   </section>
 
-  <Teleport to="body">
-    <div v-if="showPasswordModal" class="modal-backdrop" @click.self="closePasswordModal">
-      <div class="password-modal" role="dialog" aria-modal="true" aria-labelledby="password-modal-title">
-        <p class="modal-description">
-          {{ pendingAction === "delete" ? "삭제를" : "수정을" }} 진행하려면 게시물 비밀번호를 입력하세요.
-        </p>
-        <input
-          v-model="password"
-          type="password"
-          class="password-input"
-          placeholder="비밀번호 입력"
-          @keyup.enter="submitPasswordAction"
-        />
-        <p v-if="passwordError" class="password-error">{{ passwordError }}</p>
-        <div class="modal-actions">
-          <button type="button" class="cancel-button" @click="closePasswordModal">취소</button>
-          <button type="button" class="confirm-button" @click="submitPasswordAction">확인</button>
-        </div>
-      </div>
-    </div>
-  </Teleport>
 </template>
 
 <style scoped>
@@ -266,6 +196,12 @@ async function likePost(id) {
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 20px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 h1 {
@@ -324,18 +260,29 @@ h1 {
   box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
 }
 
-.write-link {
+.write-link,
+.logout-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-height: 44px;
   padding: 0 18px;
   border-radius: 999px;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.write-link {
   color: #fff;
   background: linear-gradient(135deg, #2563eb, #1d4ed8);
   box-shadow: 0 12px 24px rgba(37, 99, 235, 0.22);
-  text-decoration: none;
-  font-weight: 700;
+}
+
+.logout-button {
+  border: 0;
+  color: #0f172a;
+  background: #e2e8f0;
+  cursor: pointer;
 }
 
 .search-button {
@@ -417,11 +364,6 @@ h1 {
   box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
 }
 
-.password-modal h2 {
-  margin: 0 0 10px;
-  font-size: 24px;
-}
-
 .modal-description {
   margin: 0 0 16px;
   color: #64748b;
@@ -464,15 +406,14 @@ h1 {
 
 @media (max-width: 640px) {
   .board-header,
-  .board-toolbar {
+  .board-toolbar,
+  .header-actions {
     align-items: stretch;
     flex-direction: column;
   }
 
-  .write-link {
-    width: 100%;
-  }
-
+  .write-link,
+  .logout-button,
   .search-button {
     width: 100%;
   }

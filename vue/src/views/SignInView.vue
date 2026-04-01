@@ -1,22 +1,27 @@
 <script setup>
-import { reactive, registerRuntimeCompiler } from "vue";
+import { reactive } from "vue";
 import { RouterLink, useRouter } from "vue-router";
+import { setAccessToken, setAuthUser } from "@/utils/auth";
 
 const router = useRouter();
 
 const form = reactive({
   username: "",
-  password: ""
+  password: "",
 });
 
 async function submitPost() {
+  if (!form.username.trim()) {
+    alert("아이디를 입력하세요.");
+    return;
+  }
 
-  if (!form.password) {
+  if (!form.password.trim()) {
     alert("비밀번호를 입력하세요.");
     return;
   }
-  
-  const response = await fetch(`/api/users/signIn`, {
+
+  const response = await fetch("/api/auth/login", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -24,7 +29,15 @@ async function submitPost() {
     body: JSON.stringify(form),
   });
 
-  router.push("/board");
+  if (!response.ok) {
+    alert("로그인에 실패했습니다.");
+    return;
+  }
+
+  const data = await response.json();
+  setAccessToken(data.accessToken);
+  setAuthUser(data.username, data.nickname);
+  router.push({ name: "BoardView" });
 }
 </script>
 
@@ -49,7 +62,7 @@ async function submitPost() {
 
       <div class="actions">
         <button type="submit" class="submit-button">로그인</button>
-        <RouterLink to="/signUp" class="cancel-button">회원가입</RouterLink>
+        <RouterLink :to="{ name: 'SignUpView' }" class="cancel-button">회원가입</RouterLink>
       </div>
     </form>
   </section>
@@ -57,7 +70,7 @@ async function submitPost() {
 
 <style scoped>
 .write-page {
-  width: min(800px, calc(100% - 32px));
+  width: min(400px, calc(100% - 32px));
   margin: 40px auto;
 }
 
@@ -68,7 +81,6 @@ async function submitPost() {
   gap: 16px;
   margin-bottom: 24px;
 }
-
 
 h1 {
   margin: 0;
@@ -99,8 +111,7 @@ h1 {
   color: #334155;
 }
 
-.field input,
-.field textarea {
+.field input {
   width: 100%;
   border: 1px solid #cbd5e1;
   border-radius: 12px;
@@ -111,13 +122,7 @@ h1 {
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.field textarea {
-  resize: vertical;
-  min-height: 220px;
-}
-
-.field input:focus,
-.field textarea:focus {
+.field input:focus {
   outline: none;
   border-color: #2563eb;
   box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
@@ -129,7 +134,6 @@ h1 {
   gap: 12px;
 }
 
-.back-link,
 .cancel-button,
 .submit-button {
   border-radius: 999px;
@@ -138,8 +142,7 @@ h1 {
   font-weight: 700;
 }
 
-.back-link,
-.ghost-button {
+.cancel-button {
   color: #2563eb;
   background: #eff6ff;
 }
@@ -152,10 +155,6 @@ h1 {
 }
 
 @media (max-width: 640px) {
-  .write-header {
-    flex-direction: column;
-  }
-
   .actions {
     flex-direction: column;
   }

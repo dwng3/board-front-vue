@@ -6,7 +6,7 @@ defineProps({
   },
 });
 
-const emit = defineEmits(["delete", "like", "edit"]);
+const emit = defineEmits(["like"]);
 
 function formatCreatedAt(value) {
   if (!value) return "";
@@ -22,19 +22,13 @@ function formatCreatedAt(value) {
       <RouterLink :to="`/post/${post.id}`" class="post-link">
         <div class="post-meta">
           <span class="meta-badge">글번호 : {{ post.id }}</span>
-          <span class="meta-item">작성자 : {{ post.writer }}</span>
+          <span class="meta-item">작성자: {{ post.writer }}</span>
           <span class="meta-item">작성일시: {{ formatCreatedAt(post.updatedAt) }}</span>
         </div>
         <h2 class="post-title">{{ post.title }}</h2>
       </RouterLink>
 
       <div class="post-actions">
-        <button type="button" class="action-link" @click="emit('edit', post.id)">
-          수정
-        </button>
-        <button type="button" class="delete-button" @click="emit('delete', post.id)">
-          삭제
-        </button>
         <button type="button" class="like-button" @click="emit('like', post.id)">
           좋아요 <span>{{ post.likeCount }}</span>
         </button>
@@ -114,8 +108,6 @@ function formatCreatedAt(value) {
   padding: 0 20px 20px;
 }
 
-.action-link,
-.delete-button,
 .like-button,
 .view-count {
   border: 0;
@@ -123,19 +115,6 @@ function formatCreatedAt(value) {
   padding: 10px 14px;
   font: inherit;
   font-weight: 700;
-  text-decoration: none;
-}
-
-.action-link {
-  color: #2563eb;
-  background: #eff6ff;
-  cursor: pointer;
-}
-
-.delete-button {
-  color: #fff;
-  background: #dc2626;
-  cursor: pointer;
 }
 
 .like-button {
