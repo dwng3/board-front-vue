@@ -62,7 +62,8 @@ async function submitPost() {
 
       <div class="actions">
         <button type="submit" class="submit-button">로그인</button>
-        <RouterLink :to="{ name: 'SignUpView' }" class="cancel-button">회원가입</RouterLink>
+        <RouterLink :to="{ name: 'SignUpView' }" class="signup-button">회원가입</RouterLink>
+        <RouterLink :to="{ name: 'BoardView' }" class="signup-button">비회원</RouterLink>
       </div>
     </form>
   </section>
@@ -134,7 +135,7 @@ h1 {
   gap: 12px;
 }
 
-.cancel-button,
+.signup-button,
 .submit-button {
   border-radius: 999px;
   padding: 12px 18px;
@@ -142,7 +143,7 @@ h1 {
   font-weight: 700;
 }
 
-.cancel-button {
+.signup-button {
   color: #2563eb;
   background: #eff6ff;
 }
@@ -159,7 +160,7 @@ h1 {
     flex-direction: column;
   }
 
-  .cancel-button,
+  .signup-button,
   .submit-button {
     text-align: center;
   }

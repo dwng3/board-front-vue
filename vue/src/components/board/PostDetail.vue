@@ -24,7 +24,6 @@ function formatCreatedAt(value) {
   return timePart ? `${datePart} ${timePart.slice(0, 5)}` : datePart;
 }
 
-const commentWriter = computed(() => props.currentUsername || "익명");
 
 async function fetchComments() {
 
@@ -90,7 +89,7 @@ watch(
           </p>
         </div>
 
-        <div v-if="post.writer === currentUsername" class="detail-actions">
+        <div v-if="post.writerUsername === currentUsername" class="detail-actions">
           <button type="button" class="edit-button" @click="emit('edit', post.id)">수정</button>
           <button type="button" class="delete-button" @click="emit('delete', post.id)">삭제</button>
         </div>
