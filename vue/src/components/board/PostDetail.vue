@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from "vue";
-import { clearAccessToken, createAuthHeaders, getAccessToken } from "@/utils/auth";
+import { createAuthHeaders } from "@/utils/auth";
 
 const props = defineProps({
   post: {
@@ -11,11 +11,16 @@ const props = defineProps({
     type: String,
     default: "",
   },
+  guestMode: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const emit = defineEmits(["edit", "delete"]);
 const commentText = ref("");
 const comments = ref([]);
+const commentWriter = computed(() => props.currentUsername || "비회원");
 
 function formatCreatedAt(value) {
   if (!value) return "";
@@ -24,15 +29,15 @@ function formatCreatedAt(value) {
   return timePart ? `${datePart} ${timePart.slice(0, 5)}` : datePart;
 }
 
-
 async function fetchComments() {
+  if (!props.post?.id) return;
 
   const response = await fetch(`/api/comments?boardId=${props.post.id}`, {
     method: "GET",
     headers: createAuthHeaders(),
   });
 
-  if(!response.ok){
+  if (!response.ok) {
     throw new Error("댓글 목록을 불러오지 못했습니다.");
   }
 
@@ -41,23 +46,28 @@ async function fetchComments() {
 }
 
 async function submitComment() {
+  if (props.guestMode) {
+    alert("댓글 작성은 로그인 후 사용할 수 있습니다.");
+    return;
+  }
+
   const content = commentText.value.trim();
   if (!content) return;
 
   const payload = {
     boardId: props.post.id,
     content,
-  }
+  };
 
   const response = await fetch(`/api/comments`, {
     method: "POST",
     headers: createAuthHeaders({
       "Content-Type": "application/json",
     }),
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
   });
 
-  if(!response.ok){
+  if (!response.ok) {
     alert("댓글 작성에 실패했습니다.");
     return;
   }
@@ -75,29 +85,44 @@ watch(
   },
   { immediate: true }
 );
-
 </script>
 
 <template>
   <div class="post-detail">
     <template v-if="post">
-      <div class="detail-header">
-        <div>
-          <h2>{{ post.title }}</h2>
-          <p class="meta">
-            작성자: {{ post.writer }} | 작성일시: {{ formatCreatedAt(post.updatedAt) }}
-          </p>
+      <section class="detail-hero">
+        <div class="detail-header">
+          <div class="title-block">
+            <h2>{{ post.title }}</h2>
+          </div>
+
+          <div v-if="post.writerUsername === currentUsername && !guestMode" class="detail-actions">
+            <button type="button" class="edit-button" @click="emit('edit', post.id)">수정</button>
+            <button type="button" class="delete-button" @click="emit('delete', post.id)">삭제</button>
+          </div>
         </div>
 
-        <div v-if="post.writerUsername === currentUsername" class="detail-actions">
-          <button type="button" class="edit-button" @click="emit('edit', post.id)">수정</button>
-          <button type="button" class="delete-button" @click="emit('delete', post.id)">삭제</button>
+        <div class="detail-meta-grid">
+          <div class="meta-card">
+            <span class="meta-label">작성자</span>
+            <strong>{{ post.writer }}</strong>
+          </div>
+          <div class="meta-card">
+            <span class="meta-label">작성일</span>
+            <strong>{{ formatCreatedAt(post.updatedAt) }}</strong>
+          </div>
+          <div class="meta-card">
+            <span class="meta-label">조회수</span>
+            <strong>{{ post.viewCount }}</strong>
+          </div>
         </div>
-      </div>
+      </section>
 
-      <p class="content">
-        {{ post.content }}
-      </p>
+      <section class="content-section">
+        <p class="content">
+          {{ post.content }}
+        </p>
+      </section>
 
       <section class="comment-section">
         <div class="comment-header">
@@ -110,11 +135,19 @@ watch(
             v-model="commentText"
             class="comment-input"
             rows="4"
-            placeholder="댓글을 입력하세요"
+            :placeholder="guestMode ? '비회원은 댓글을 작성할 수 없습니다.' : '댓글을 입력하세요'"
+            :disabled="guestMode"
           ></textarea>
           <div class="comment-form-footer">
             <span class="comment-writer">{{ commentWriter }}</span>
-            <button type="button" class="comment-submit" @click="submitComment">등록</button>
+            <button
+              type="button"
+              class="comment-submit"
+              @click="submitComment"
+              :disabled="guestMode"
+            >
+              등록
+            </button>
           </div>
         </div>
 
@@ -140,57 +173,140 @@ watch(
 
 <style scoped>
 .post-detail {
-  border: 1px solid #ddd;
-  border-radius: 12px;
-  padding: 24px;
-  background: #fff;
+  border: 1px solid rgba(203, 213, 225, 0.82);
+  border-radius: 30px;
+  padding: 28px;
+  background:
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.7), transparent 24%),
+    linear-gradient(180deg, #ffffff, #f3f4f6);
+  box-shadow: 0 22px 42px rgba(15, 23, 42, 0.08);
+  font-family:
+    "Pretendard",
+    "Noto Sans KR",
+    "Apple SD Gothic Neo",
+    "Malgun Gothic",
+    sans-serif;
+}
+
+.detail-hero {
+  padding-bottom: 24px;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .detail-header {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
+  gap: 20px;
 }
 
-.meta {
-  color: #666;
-  font-size: 14px;
-  margin: 10px 0 20px;
+.title-block {
+  max-width: 640px;
+}
+
+.detail-label {
+  margin: 0 0 10px;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+
+.title-block h2 {
+  margin: 0;
+  color: #111827;
+  font-size: clamp(34px, 5vw, 46px);
+  line-height: 1.06;
+  letter-spacing: -0.05em;
 }
 
 .detail-actions {
   display: flex;
-  align-items: flex-start;
   gap: 10px;
 }
 
 .edit-button,
-.delete-button {
+.delete-button,
+.comment-submit {
   border: 0;
   border-radius: 999px;
-  padding: 10px 14px;
+  color: #f8fafc;
   font: inherit;
   font-weight: 700;
   cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.edit-button {
-  color: #2563eb;
-  background: #eff6ff;
+.edit-button,
+.comment-submit {
+  background: linear-gradient(135deg, #111827 0%, #374151 58%, #94a3b8 100%);
+  box-shadow: 0 12px 22px rgba(15, 23, 42, 0.14);
 }
 
 .delete-button {
-  color: #fff;
-  background: #dc2626;
+  background: linear-gradient(135deg, #1f2937 0%, #4b5563 58%, #9ca3af 100%);
+  box-shadow: 0 12px 22px rgba(15, 23, 42, 0.14);
+}
+
+.edit-button,
+.delete-button {
+  padding: 10px 16px;
+}
+
+.detail-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.meta-card {
+  display: grid;
+  gap: 5px;
+  padding: 12px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.meta-label {
+  color: #6b7280;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.meta-card strong {
+  color: #111827;
+  font-size: 14px;
+}
+
+.content-section {
+  margin-top: 26px;
+}
+
+.section-title {
+  margin: 0 0 14px;
+  color: #111827;
+  font-size: 20px;
+  letter-spacing: -0.02em;
 }
 
 .content {
-  line-height: 1.7;
+  margin: 0;
+  min-height: 300px;
+  padding: 24px;
+  border: 1px solid #e5e7eb;
+  border-radius: 22px;
+  background: #ffffff;
+  color: #111827;
+  font-size: 16px;
+  line-height: 1.85;
   white-space: pre-line;
 }
 
 .comment-section {
-  margin-top: 32px;
+  margin-top: 34px;
   padding-top: 24px;
   border-top: 1px solid #e2e8f0;
 }
@@ -205,44 +321,54 @@ watch(
 
 .comment-header h3 {
   margin: 0;
+  color: #111827;
   font-size: 22px;
-  color: #0f172a;
+  letter-spacing: -0.02em;
 }
 
 .comment-count {
   border-radius: 999px;
-  padding: 6px 10px;
-  color: #475569;
-  background: #f8fafc;
-  font-size: 13px;
+  padding: 6px 11px;
+  color: #4b5563;
+  background: #e5e7eb;
+  font-size: 12px;
   font-weight: 700;
 }
 
 .comment-form {
   display: grid;
-  gap: 12px;
+  gap: 10px;
   padding: 16px;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  background: linear-gradient(180deg, #ffffff, #f8fbff);
+  border: 1px solid rgba(203, 213, 225, 0.72);
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff, #f3f4f6);
 }
 
 .comment-input {
   width: 100%;
+  min-height: 92px;
+  resize: vertical;
   border: 1px solid #cbd5e1;
-  border-radius: 12px;
-  padding: 14px 16px;
+  border-radius: 16px;
+  padding: 13px 15px;
   font: inherit;
   color: #0f172a;
   background: #fff;
-  resize: vertical;
-  min-height: 110px;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.comment-input:disabled {
+  border-color: #d1d5db;
+  background: linear-gradient(180deg, #e5e7eb, #d1d5db);
+  color: #6b7280;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.03);
+  cursor: not-allowed;
 }
 
 .comment-input:focus {
   outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+  border-color: #4b5563;
+  box-shadow: 0 0 0 4px rgba(107, 114, 128, 0.14);
 }
 
 .comment-form-footer {
@@ -254,19 +380,24 @@ watch(
 
 .comment-writer {
   color: #475569;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
 }
 
 .comment-submit {
-  border: 0;
-  border-radius: 999px;
-  padding: 10px 16px;
-  color: #fff;
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
-  font: inherit;
+  padding: 9px 15px;
+}
+
+.comment-submit:disabled {
+  background: #cbd5e1;
+  box-shadow: none;
+  cursor: default;
+}
+
+.guest-message {
+  margin: 14px 0 0;
+  color: #374151;
   font-weight: 700;
-  cursor: pointer;
 }
 
 .comment-list {
@@ -278,10 +409,11 @@ watch(
 }
 
 .comment-card {
-  padding: 16px 18px;
-  border: 1px solid #e5e7eb;
-  border-radius: 14px;
-  background: #fff;
+  padding: 14px 16px;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.05);
 }
 
 .comment-meta {
@@ -289,14 +421,15 @@ watch(
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   color: #64748b;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .comment-card p {
   margin: 0;
   color: #0f172a;
+  font-size: 14px;
   line-height: 1.6;
   white-space: pre-line;
 }
@@ -306,6 +439,12 @@ watch(
   color: #64748b;
 }
 
+.edit-button:hover,
+.delete-button:hover,
+.comment-submit:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
 @media (max-width: 640px) {
   .detail-header,
   .detail-actions,
@@ -313,6 +452,25 @@ watch(
   .comment-meta {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .detail-meta-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .post-detail {
+    padding: 22px 18px;
+    border-radius: 22px;
+  }
+
+  .title-block h2 {
+    font-size: 30px;
+  }
+}
+
+@media (max-width: 480px) {
+  .detail-meta-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

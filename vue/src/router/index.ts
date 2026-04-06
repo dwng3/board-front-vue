@@ -1,4 +1,5 @@
 import { createWebHistory, createRouter } from "vue-router";
+import { getAccessToken, isGuestMode } from "@/utils/auth";
 
 const routes = [
   {
@@ -36,6 +37,26 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes,
+});
+
+router.beforeEach((to) => {
+  const token = getAccessToken();
+  const guest = isGuestMode();
+  const hasSession = Boolean(token) || guest;
+  const isAuthPage = to.name === "SignInView" || to.name === "SignUpView";
+  const isWritePage = to.name === "PostWrite" || to.name === "PostEdit";
+
+  if (hasSession && isAuthPage) {
+    return { name: "BoardView" };
+  }
+
+  if (!hasSession && !isAuthPage) {
+    return { name: "SignInView" };
+  }
+
+  if (guest && isWritePage) {
+    return { name: "BoardView" };
+  }
 });
 
 export default router;

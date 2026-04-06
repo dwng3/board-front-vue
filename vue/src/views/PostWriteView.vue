@@ -96,10 +96,10 @@ h1 {
   display: grid;
   gap: 20px;
   padding: 28px;
-  border: 1px solid #dbe3f0;
+  border: 1px solid #d1d5db;
   border-radius: 20px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.96)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(243, 244, 246, 0.98)),
     #ffffff;
   box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
 }
@@ -135,8 +135,8 @@ h1 {
 .field input:focus,
 .field textarea:focus {
   outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+  border-color: #4b5563;
+  box-shadow: 0 0 0 4px rgba(107, 114, 128, 0.12);
 }
 
 .actions {
@@ -156,14 +156,14 @@ h1 {
 
 .back-link,
 .cancel-button {
-  color: #2563eb;
-  background: #eff6ff;
+  color: #374151;
+  background: #f3f4f6;
 }
 
 .submit-button {
   border: 0;
   color: #fff;
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  background: linear-gradient(135deg, #111827 0%, #374151 58%, #94a3b8 100%);
   cursor: pointer;
 }
 

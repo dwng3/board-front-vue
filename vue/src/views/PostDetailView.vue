@@ -7,12 +7,14 @@ import {
   createAuthHeaders,
   getAccessToken,
   getAuthUsername,
+  isGuestMode,
 } from "@/utils/auth";
 
 const route = useRoute();
 const router = useRouter();
 const post = ref(null);
 const currentUsername = ref(getAuthUsername());
+const guestMode = ref(isGuestMode());
 
 function moveToSignIn() {
   clearAccessToken();
@@ -20,11 +22,6 @@ function moveToSignIn() {
 }
 
 async function fetchPost() {
-  if (!getAccessToken()) {
-    moveToSignIn();
-    return;
-  }
-
   const id = route.params.id;
 
   const response = await fetch(`/api/boards/${id}`, {
@@ -32,7 +29,9 @@ async function fetchPost() {
   });
 
   if (response.status === 401) {
-    moveToSignIn();
+    if (!guestMode.value) {
+      moveToSignIn();
+    }
     return;
   }
 
@@ -44,10 +43,20 @@ async function fetchPost() {
 }
 
 function editPost(id) {
+  if (guestMode.value || !getAccessToken()) {
+    moveToSignIn();
+    return;
+  }
+
   router.push(`/post/${id}/edit`);
 }
 
 async function deletePost(id) {
+  if (guestMode.value || !getAccessToken()) {
+    moveToSignIn();
+    return;
+  }
+
   const confirmed = window.confirm("이 게시글을 삭제하시겠습니까?");
   if (!confirmed) return;
 
@@ -78,33 +87,86 @@ onMounted(fetchPost);
 </script>
 
 <template>
-  <div class="detail-page">
-    <RouterLink :to="{ name: 'BoardView' }" class="back-link">뒤로 가기</RouterLink>
+  <section class="detail-shell">
+    <div class="detail-topbar">
+      <div class="detail-topbar-copy">
+      </div>
+      <RouterLink :to="{ name: 'BoardView' }" class="back-link">목록으로</RouterLink>
+    </div>
+
     <PostDetail
       :post="post"
       :current-username="currentUsername"
+      :guest-mode="guestMode"
       @edit="editPost"
       @delete="deletePost"
     />
-  </div>
+  </section>
 </template>
 
 <style scoped>
-.detail-page {
-  width: min(800px, calc(100% - 32px));
-  margin: 40px auto;
+.detail-shell {
+  width: min(860px, calc(100% - 40px));
+  margin: 42px auto 64px;
+  font-family:
+    "Pretendard",
+    "Noto Sans KR",
+    "Apple SD Gothic Neo",
+    "Malgun Gothic",
+    sans-serif;
+}
+
+.detail-topbar {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 20px;
+}
+
+.detail-kicker {
+  margin: 0 0 8px;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+
+.detail-topbar h1 {
+  margin: 0;
+  color: #111827;
+  font-size: clamp(30px, 4vw, 40px);
+  letter-spacing: -0.04em;
 }
 
 .back-link {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 16px;
-  padding: 10px 14px;
+  min-height: 46px;
+  padding: 0 18px;
   border-radius: 999px;
-  color: #2563eb;
-  background: #eff6ff;
+  color: #f8fafc;
+  background: linear-gradient(135deg, #111827 0%, #374151 58%, #94a3b8 100%);
   text-decoration: none;
   font-weight: 700;
+  box-shadow: 0 14px 26px rgba(15, 23, 42, 0.14);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.back-link:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 30px rgba(15, 23, 42, 0.18);
+}
+
+@media (max-width: 640px) {
+  .detail-shell {
+    width: min(100%, calc(100% - 24px));
+  }
+
+  .detail-topbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
 }
 </style>
